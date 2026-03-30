@@ -17,6 +17,7 @@ const {AudioModule} = NativeModules;
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const [isEngineRunning, setIsEngineRunning] = useState(false);
+  const [isEngineTransitioning, setIsEngineTransitioning] = useState(false);
   const [nativeMessage, setNativeMessage] = useState('Loading...');
   const [focusStrength, setFocusStrength] = useState(1.0);
 
@@ -29,22 +30,29 @@ function App(): React.JSX.Element {
   }, []);
 
   const toggleEngine = async () => {
-    if (!AudioModule) return;
+    if (!AudioModule || isEngineTransitioning) {
+      return;
+    }
+
+    setIsEngineTransitioning(true);
+
     try {
       if (isEngineRunning) {
-        AudioModule.stopEngine();
+        await AudioModule.stopEngine();
         setIsEngineRunning(false);
       } else {
         const success = await AudioModule.startEngine();
         if (success) {
           setIsEngineRunning(true);
-          AudioModule.setFocusStrength(focusStrength);
+          await AudioModule.setFocusStrength(focusStrength);
         } else {
           console.error('Failed to start engine');
         }
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsEngineTransitioning(false);
     }
   };
 
@@ -69,6 +77,7 @@ function App(): React.JSX.Element {
             thumbColor={isEngineRunning ? '#fff' : '#f4f3f4'}
             onValueChange={toggleEngine}
             value={isEngineRunning}
+            disabled={isEngineTransitioning}
           />
           <Text style={[styles.statusText, {color: isEngineRunning ? '#00E676' : '#FF5252'}]}>
             {isEngineRunning ? 'ACTIVE' : 'INACTIVE'}
